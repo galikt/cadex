@@ -1,23 +1,28 @@
 ﻿#include <iostream>
 #include <time.h>
 #include <math.h>
-#include <list>
+#include <vector>
+#include <algorithm>
 #include <format>
-#include "CX_Core.h"
 #include <filesystem>
+#include <omp.h>
+#include "CX_Core.h"
+
+const size_t SHAPE_AMOUNT{500};
 
 int main()
 {
   std::srand(time(nullptr));
 
-  std::list<CX_ShapePtr> list_one;
-  std::list<CX_ShapePtr> list_two;
+  std::vector<CX_ShapePtr> list_one;
+  std::vector<CX_ShapePtr> list_two;
 
-  for (int i = 0; i < 100; ++i)
+  for (int i = 0; i < SHAPE_AMOUNT; ++i)
   {
     list_one.push_back(std::move(CX_ShapeFactory::CreateRandomShape()));
   }
 
+  std::cout << "list one. Angle = PI/4" << std::endl;
   for (auto& shape : list_one)
   {
     auto description = shape->GetDescription();
@@ -37,19 +42,29 @@ int main()
     auto c2 = dynamic_cast<CX_Circle*>(v2.get());
     return *c1 < *c2;
   };
-  list_two.sort(comparator);
+  std::sort(list_two.begin(), list_two.end(), comparator);
+
+  std::cout << "Sorted list two" << std::endl;
+  for (auto& shape : list_two)
+  {
+    std::cout << shape->GetDescription() << std::endl;
+  }
 
   float sum{0};
+#pragma omp parallel for reduction(+ : sum)
   for (auto& shape : list_two)
   {
     auto circle = dynamic_cast<CX_Circle*>(shape.get());
     sum += circle->GetRadius();
+    // std::cout << "Thread " << omp_get_thread_num() << std::endl;
   }
+  std::cout << "Sum = " << sum << std::endl;
 
   std::filesystem::create_directory("Models");
   constexpr float step = PI_2 * 0.05f;
   constexpr float max_spiral = (PI_2 * 2) + step;
   constexpr float max_circle = PI_2 + step;
+#pragma omp parallel for
   for (auto& shape : list_one)
   {
     CX_Obj obj(shape->GetDescription());
@@ -60,10 +75,12 @@ int main()
       auto v = shape->GetPoint(angle);
       auto d = shape->GetDerivative(angle);
       obj.AddData(v, v + d);
+      // std::cout << "Thread " << omp_get_thread_num() << std::endl;
     }
   }
 
-  system("pause");
+  std::cout << "Press Enter to continue" << std::endl;
+  std::cin.get();
 
   return 0;
 }

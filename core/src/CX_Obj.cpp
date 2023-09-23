@@ -1,6 +1,7 @@
 #include "CX_Obj.h"
 #include <format>
 #include <fstream>
+#include <cstring>
 
 size_t CX_Buffer::BUFFER_SIZE{4096};
 
